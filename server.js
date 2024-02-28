@@ -73,7 +73,7 @@ app.delete('/api/clients/:clientId', async (req, res) => {
             return res.status(400).json({ error: 'Please provide a valid client ID' });
         }
 
-        
+
         const result = await client.query('DELETE FROM clients WHERE id = $1', [clientId]); // delete the client from the DB
         console.log('Deleted client with ID:', clientId); // log the client ID for debugging
 
@@ -228,6 +228,7 @@ app.get('/api/clients/:clientId/earnings', async (req, res) => {
             WHERE c.id = $1
             GROUP BY c.id
         `, [clientId]); // calculate the client earnings from the DB
+        console.log('Earnings:', result.rows); // log the earnings for debugging    
 
         if (result.rows.length === 0) {
             res.status(404).json({ error: 'Client not found or no sessions recorded' }); // send a not found error
@@ -241,6 +242,52 @@ app.get('/api/clients/:clientId/earnings', async (req, res) => {
     }
 });
 
+// Define a GET route for calculating earnings and hours for each session of a client
+app.get('/api/clients/:clientId/sessions', async (req, res) => {
+    try {
+        const clientId = Number.parseInt(req.params.clientId); // extract the client ID from the request parameters
+
+        const result = await client.query(`
+            SELECT 
+                s.started_at::date AS shift_date,
+                ROUND(EXTRACT(epoch FROM s.duration) / 3600, 2) AS hours_worked,
+                ROUND(EXTRACT(epoch FROM s.duration) / 3600 * c.hourly_rate, 2) AS shift_earnings
+            FROM clients c
+            JOIN sessions s ON c.id = s.client_id
+            WHERE c.id = $1
+            ORDER BY s.started_at
+        `, [clientId]); // calculate the client earnings from the DB
+
+        // Format the shift_date to display only the date part
+        const sessions = result.rows.map(session => ({
+            ...session,
+            shift_date: new Date(session.shift_date).toDateString()
+        }));
+
+        // Calculate the total hours worked and total earnings
+        const total = sessions.reduce((acc, session) => {
+            acc.total_hours_worked += parseFloat(session.hours_worked);
+            acc.total_earnings += parseFloat(session.shift_earnings);
+            return acc;
+        }, { total_hours_worked: 0, total_earnings: 0 });
+
+        // Format the total to two decimal places
+        total.total_hours_worked = total.total_hours_worked.toFixed(2);
+        total.total_earnings = total.total_earnings.toFixed(2);
+
+        console.log('Client Sessions and Total:', { sessions, total }); // log the session details and total for debugging  
+
+        if (sessions.length === 0) {
+            res.status(404).json({ error: 'Client not found or no sessions recorded' }); // send a not found error
+        } else {
+            res.json({ sessions, total }); // send the session details and total as a JSON response
+        }
+    }
+    catch (error) {
+        console.error('Error fetching client sessions:', error); // log error for debugging
+        res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
+    }
+});
 
 
 // test port
