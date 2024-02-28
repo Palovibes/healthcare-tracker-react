@@ -9,12 +9,13 @@ CREATE TABLE clients (
     last_name TEXT,
     email TEXT,
     phone_number TEXT,
-    other_details TEXT
+    other_details TEXT,
+    hourly_rate NUMERIC(5,2)
 );
 -- Create the table
 CREATE TABLE sessions (
     id SERIAL PRIMARY KEY,
-    duration time,
+    duration INTERVAL,
     started_at TIMESTAMP,
     ended_at TIMESTAMP,
     client_id INTEGER REFERENCES clients(id),
