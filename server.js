@@ -181,59 +181,27 @@ app.patch('/api/clients/:clientId', async (req, res) => {
     }
 })
 
-// PUT route to replace entire client information
-app.put('/api/clients/:clientId', async (req, res) => {
-    try {
-        const { clientId } = req.params; // extract the client ID from the request parameters
-        const updatedClient = req.body; // extract the updated client data from the request body
-
-        // Validate incoming data 
-        if (!updatedClient || !updatedClient.first_name || !updatedClient.last_name || !updatedClient.email || !updatedClient.other_details || !updatedClient.hourly_rate || Number.isNaN(updatedClient.phone_number)) {
-            return res.status(400).json({ error: 'Please provide all required fields' });
-        }
-
-        // Build SQL query for UPDATE
-        const query = `
-        UPDATE clients
-        SET first_name = $1,
-            last_name = $2,
-            email = $3,
-            phone_number = $4,
-            other_details = $5,
-            hourly_rate = $6
-        WHERE id = $7
-        RETURNING *
-        `;
-        const values = [updatedClient.first_name, updatedClient.last_name, updatedClient.email, updatedClient.phone_number, updatedClient.other_details, updatedClient.hourly_rate, clientId]; // pass the client data as parameters   
-
-        // Execute query and handle response
-        const result = await client.query(query, values); // update the client in the DB
-        console.log('Query Result:', result.rows); // Log the query result for debugging    
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'Client not found' }); // send a not found error
-        }
-        res.status(200).json(result.rows[0]); // send the updated client as a JSON response
-    }
-    catch (error) {
-        console.error('Error updating client:', error); // log error for debugging
-        res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
-    }
-});
-
 // Route for recording hours of health care (POST)
 app.post('/api/hours', async (req, res) => {
     try {
         // extract data from request body
         const { client_id, duration, started_at, ended_at, comments } = req.body;
+        console.log('Duration:', duration); // log the duration for debugging
+
         // validate incoming data
         if (!client_id || !duration || !started_at || !ended_at) {
             return res.status(400).json({ error: 'Please provide all required fields' });
         }
+
+        // Convert hours and minutes to a PostgresInterval string
+        const intervalString = `${duration.hours} hours ${duration.minutes} minutes`;
+
         // Inset the recorded hours into the sessions table
-        const query = 'INSERT INTO sessions (client_id, duration, started_at, ended_at, comments) VALUES ($1, $2, $3, $4, $5) RETURNING *';
-        const values = [client_id, duration, started_at, ended_at, comments];
+        const query = 'INSERT INTO sessions (client_id, duration, started_at, ended_at, comments) VALUES ($1, $2::INTERVAL, $3, $4, $5) RETURNING *';
+        const values = [client_id, intervalString, started_at, ended_at, comments];
         const result = await client.query(query, values); // insert the session into the DB
-        console.log('Query Result:', result.rows); // Log the query result for debugging
+        console.log('Hours Cloked in:', result.rows); // Log the query result for debugging    
+
         // Respond with success message
         res.status(201).json({ message: 'Hours recorded successfully', recorded_hours: result.rows[0] });
     }
@@ -242,6 +210,7 @@ app.post('/api/hours', async (req, res) => {
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
     }
 });
+
 
 // Define a GET route for calculating earnings for a client 
 app.get('/api/clients/:clientId/earnings', async (req, res) => {
