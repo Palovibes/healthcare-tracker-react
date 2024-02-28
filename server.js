@@ -98,11 +98,11 @@ app.get('/api/clients', async (req, res) => {
 });
 
 // GET route to fetch a single client 
-app.get('api/clients/:cliendId', async (req, res) => {
+app.get('/api/clients/:clientId', async (req, res) => {
     try {
         const clientId = Number.parseInt(req.params.clientId); // extract the client ID from the request parameters
         const result = await client.query(`
-        SELECT id, fist_name, last_name, email, phone_number, other_details, hourly_rate
+        SELECT id, first_name, last_name, email, phone_number, other_details, hourly_rate
         FROM clients
         WHERE id = $1
         `, [clientId]); // fetch the client from the DB
@@ -117,7 +117,8 @@ app.get('api/clients/:cliendId', async (req, res) => {
         console.error('Error fetching client:', error); // log error for debugging
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
     }
-})
+});
+
 
 
 // GET Route to fetch all sessions
