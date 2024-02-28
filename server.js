@@ -162,14 +162,14 @@ app.patch('/api/clients/:clientId', async (req, res) => {
             last_name = COALESCE($2, last_name),
             email = COALESCE($3, email),
             phone_number = COALESCE($4, phone_number),
-            other_details = COALESCE($5, other_details)
+            other_details = COALESCE($5, other_details),
             hourly_rate = COALESCE($6, hourly_rate)
         WHERE id = $7
         RETURNING *
         `;
         const values = [first_name, last_name, email, phone_number, other_details, hourly_rate, clientId]; // pass the client data as parameters
         const result = await client.query(query, values); // update the client in the DB
-
+        console.log('Query Result:', result.rows); // Log the query result for debugging
         if (result.rowCount === 0) {
             return res.status(404).json({ error: 'Client not found' }); // send a not found error
         }
