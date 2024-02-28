@@ -34,7 +34,7 @@ app.use(express.static('public')); // Serve static files from the 'public' direc
 app.post('/api/clients', async (req, res) => { // Define a new POST route
     try {
         // Extract client data from the request body
-        const { first_name, last_name, email, phone_number, other_details } = req.body; // extract client data from the request body
+        const { first_name, last_name, email, phone_number, other_details, hourly_rate } = req.body; // extract client data from the request body
 
         // Validate client data
         if (!first_name || !last_name || !email || !other_details || Number.isNaN(phone_number)) {
@@ -43,7 +43,7 @@ app.post('/api/clients', async (req, res) => { // Define a new POST route
 
         // Insert the new client into the DB
         const result = await client.query(
-            `INSERT INTO clients (first_name, last_name, email, phone_number, other_details) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            `INSERT INTO clients (first_name, last_name, email, phone_number, other_details, hourly_rate) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
             [first_name, last_name, email, phone_number, other_details] // pass the client data as parameters
         );
 
@@ -55,9 +55,6 @@ app.post('/api/clients', async (req, res) => { // Define a new POST route
     catch (error) {
         console.error('Error in adding a new client:', error); // log error for debugging
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
-    }
-    finally {
-        await client.end(); // close the DB connection
     }
 });
 
@@ -85,13 +82,10 @@ app.delete('api/clients/:clientId', async (req, res) => {
         console.error('Error in deleting a client:', error); // log error for debugging
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
     }
-    finally {
-        await client.end(); // close the DB connection
-    }
 })
 
 // GET route to fetch all clients
-app.get('api/clients', async (req, res) => {
+app.get('/api/clients', async (req, res) => {
     try {
         const result = await client.query('SELECT * FROM clients'); // fetch all clients from the DB
         console.log(`All clients: \n, ${JSON.stringify(result.rows, null, 2)}`);
@@ -101,9 +95,6 @@ app.get('api/clients', async (req, res) => {
         console.error('Error fetching clients:', error); // log error for debugging
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
     }
-    finally {
-        await client.end(); // close the DB connection
-    }
 });
 
 // GET route to fetch a single client 
@@ -111,7 +102,7 @@ app.get('api/clients/:cliendId', async (req, res) => {
     try {
         const clientId = Number.parseInt(req.params.clientId); // extract the client ID from the request parameters
         const result = await client.query(`
-        SELECT id, fist_name, last_name, email, phone_number, other_details
+        SELECT id, fist_name, last_name, email, phone_number, other_details, hourly_rate
         FROM clients
         WHERE id = $1
         `, [clientId]); // fetch the client from the DB
@@ -125,9 +116,6 @@ app.get('api/clients/:cliendId', async (req, res) => {
     catch (error) {
         console.error('Error fetching client:', error); // log error for debugging
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
-    }
-    finally {
-        await client.end(); // close the DB connection
     }
 })
 
@@ -143,9 +131,6 @@ app.get('/api/sessions', async (req, res) => {
         console.error('Error fetching sessions:', error); // log error for debugging
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
     }
-    finally {
-        await client.end(); // close the DB connection
-    }
 })
 
 
@@ -153,10 +138,10 @@ app.get('/api/sessions', async (req, res) => {
 app.patch('/api/clients/:clientId', async (req, res) => {
     try {
         const { clientId } = req.params; // extract the client ID from the request parameters
-        const { first_name, last_name, email, phone_number, other_details } = req.body; // extract client data from the request body
+        const { first_name, last_name, email, phone_number, other_details, hourly_rate } = req.body; // extract client data from the request body
 
         // Check if at least one field is provided for the update
-        if (!(first_name || last_name || email || phone_number || other_details)) {
+        if (!(first_name || last_name || email || phone_number || other_details || hourly_rate)) {
             return res.status(400).json({ error: 'Please provide at least one field to update' });
         }
 
@@ -169,10 +154,11 @@ app.patch('/api/clients/:clientId', async (req, res) => {
             email = COALESCE($3, email),
             phone_number = COALESCE($4, phone_number),
             other_details = COALESCE($5, other_details)
-        WHERE id = $6
+            hourly_rate = COALESCE($6, hourly_rate)
+        WHERE id = $7
         RETURNING *
         `;
-        const values = [first_name, last_name, email, phone_number, other_details, clientId]; // pass the client data as parameters
+        const values = [first_name, last_name, email, phone_number, other_details, hourly_rate, clientId]; // pass the client data as parameters
         const result = await client.query(query, values); // update the client in the DB
 
         if (result.rowCount === 0) {
@@ -184,9 +170,6 @@ app.patch('/api/clients/:clientId', async (req, res) => {
         console.error('Error updating client:', error); // log error for debugging
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
     }
-    finally {
-        await client.end(); // close the DB connection
-    }
 })
 
 // PUT route to replace entire client information
@@ -196,7 +179,7 @@ app.put('/api/clients/:clientId', async (req, res) => {
         const updatedClient = req.body; // extract the updated client data from the request body
 
         // Validate incoming data 
-        if (!updatedClient || !updatedClient.first_name || !updatedClient.last_name || !updatedClient.email || !updatedClient.other_details || Number.isNaN(updatedClient.phone_number)) {
+        if (!updatedClient || !updatedClient.first_name || !updatedClient.last_name || !updatedClient.email || !updatedClient.other_details || !updatedClient.hourly_rate || Number.isNaN(updatedClient.phone_number)) {
             return res.status(400).json({ error: 'Please provide all required fields' });
         }
 
@@ -208,10 +191,11 @@ app.put('/api/clients/:clientId', async (req, res) => {
             email = $3,
             phone_number = $4,
             other_details = $5
-        WHERE id = $6
+            hourly_rate = $6
+        WHERE id = $7
         RETURNING *
         `;
-        const values = [updatedClient.first_name, updatedClient.last_name, updatedClient.email, updatedClient.phone_number, updatedClient.other_details, clientId]; // pass the client data as parameters   
+        const values = [updatedClient.first_name, updatedClient.last_name, updatedClient.email, updatedClient.phone_number, updatedClient.other_details, updatedClient.hourly_rate, clientId]; // pass the client data as parameters   
 
         // Execute query and handle response
         const result = await client.query(query, values); // update the client in the DB
@@ -225,11 +209,7 @@ app.put('/api/clients/:clientId', async (req, res) => {
         console.error('Error updating client:', error); // log error for debugging
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
     }
-    finally {
-        await client.end(); // close the DB connection
-    }
 });
-
 
 // Route for recording hours of health care (POST)
 app.post('/api/hours', async (req, res) => {
@@ -250,9 +230,6 @@ app.post('/api/hours', async (req, res) => {
     catch (error) {
         console.error('Error recording hours:', error); // log error for debugging
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
-    }
-    finally {
-        await client.end(); // close the DB connection
     }
 });
 
@@ -278,7 +255,8 @@ app.get('/api/clients/:clientId/earnings', async (req, res) => {
         } else {
             res.json(result.rows[0]); // send the client earnings as a JSON response
         }
-    } catch (error) {
+    } 
+    catch (error) {
         console.error('Error fetching client earnings:', error); // log error for debugging
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
     }
