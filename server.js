@@ -64,7 +64,7 @@ app.post('/api/clients', async (req, res) => {
 
 
 // DELETE route to delete a client
-app.delete('api/clients/:clientId', async (req, res) => {
+app.delete('/api/clients/:clientId', async (req, res) => {
     try {
         const clientId = parseInt(req.params.clientId); // extract the client ID from the request parameters
 
@@ -73,10 +73,12 @@ app.delete('api/clients/:clientId', async (req, res) => {
             return res.status(400).json({ error: 'Please provide a valid client ID' });
         }
 
+        
         const result = await client.query('DELETE FROM clients WHERE id = $1', [clientId]); // delete the client from the DB
+        console.log('Deleted client with ID:', clientId); // log the client ID for debugging
 
         if (result.rowCount > 0) {
-            res.json({ message: 'Client deleted successfully' }); // send a success message
+            res.json({ message: `Client  ${clientId} deleted successfully` }); // send a success message
         }
         else {
             res.status(404).json({ error: 'Client not found' }); // send a not found error
