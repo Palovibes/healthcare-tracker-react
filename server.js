@@ -28,7 +28,6 @@ app.use(cors()); // Enable CORS
 app.use(express.json()); // Enable JSON body parsing    
 app.use(express.static('public')); // Serve static files from the 'public' directory 
 
-// Routes/CRUD Operations
 // POST route to add a new client
 app.post('/api/clients', async (req, res) => {
     try {
@@ -61,7 +60,6 @@ app.post('/api/clients', async (req, res) => {
         res.status(500).json({ error: 'Something went wrong' });
     }
 });
-
 
 // DELETE route to delete a client
 app.delete('/api/clients/:clientId', async (req, res) => {
@@ -127,8 +125,6 @@ app.get('/api/clients/:clientId', async (req, res) => {
     }
 });
 
-
-
 // GET Route to fetch all sessions
 app.get('/api/sessions', async (req, res) => {
     try {
@@ -141,6 +137,28 @@ app.get('/api/sessions', async (req, res) => {
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
     }
 })
+
+// GET route to fetch a single session
+app.get('/api/sessions/:sessionId', async (req, res) => {
+    try {
+        const sessionId = Number.parseInt(req.params.sessionId); // extract the session ID from the request parameters
+        const result = await client.query(`
+            SELECT * FROM sessions
+            WHERE id = $1
+        `, [sessionId]); // fetch the session from the DB
+
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Session not found' }); // send a not found error
+        } else {
+            res.json(result.rows[0]); // send the session as a JSON response
+        }
+    } catch (error) {
+        console.error('Error fetching session:', error); // log error for debugging
+        res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
+    }
+});
+
+
 
 
 // PATCH route to update only fields user wants to update
@@ -210,7 +228,6 @@ app.post('/api/hours', async (req, res) => {
         res.status(500).json({ error: 'Something went wrong' }); // send back a generic error message
     }
 });
-
 
 // Define a GET route for calculating earnings for a client 
 app.get('/api/clients/:clientId/earnings', async (req, res) => {
@@ -289,6 +306,32 @@ app.get('/api/clients/:clientId/sessions', async (req, res) => {
     }
 });
 
+
+// POST route to pass in time stamp 
+app.post('/api/clients/:clientId/session', async (req, res) => {
+    const clientId = Number.parseInt(req.params.clientId);
+    const { started_at, ended_at, comments } = req.body;
+    console.log(`My clientId: ${clientId}`)
+    console.log(`Started at: ${started_at}, Ended at: ${ended_at}, Comment: ${comments}`);
+
+    const query = `
+    INSERT INTO sessions (client_id, started_at, ended_at, comments) VALUES ($1, $2, $3, $4) RETURNING *
+    `;
+    const values = [clientId, started_at, ended_at, comments];
+    // Execute the query and store the result
+    const result = await client.query(query, values);
+
+    if (result.rowCount === 0) {
+        return res.status(500).json({ error: 'Internal Server error' });
+    }
+
+    // Format the timestamps
+    const session = result.rows[0];
+    session.started_at = new Date(session.started_at).toLocaleString();
+    session.ended_at = new Date(session.ended_at).toLocaleString();
+
+    res.status(201).json({ message: 'created new session timestamp', data: session });
+});
 
 // test port
 const PORT = process.env.PORT || 3000;
