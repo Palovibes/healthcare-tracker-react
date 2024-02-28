@@ -199,7 +199,7 @@ app.put('/api/clients/:clientId', async (req, res) => {
             last_name = $2,
             email = $3,
             phone_number = $4,
-            other_details = $5
+            other_details = $5,
             hourly_rate = $6
         WHERE id = $7
         RETURNING *
@@ -208,7 +208,7 @@ app.put('/api/clients/:clientId', async (req, res) => {
 
         // Execute query and handle response
         const result = await client.query(query, values); // update the client in the DB
-
+        console.log('Query Result:', result.rows); // Log the query result for debugging    
         if (result.rowCount === 0) {
             return res.status(404).json({ error: 'Client not found' }); // send a not found error
         }
